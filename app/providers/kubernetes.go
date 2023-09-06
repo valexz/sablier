@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -60,16 +61,41 @@ type KubernetesProvider struct {
 	Client kubernetes.Interface
 }
 
+// TODO: Kubeclient QPS Limit. Refactor && Make pull request
+func setAPIserverThrottlingCfg(config *rest.Config) {
+	qpsLimitEnvVal, ok := os.LookupEnv("KUBECLIENT_QPS_LIMIT")
+	if ok {
+		qpsLimitFloat64, err := strconv.ParseFloat(qpsLimitEnvVal, 32)
+		if err != nil {
+			panic(fmt.Sprintf("qpsLimit parsing failed, float32 type is required"))
+		}
+		config.QPS = float32(qpsLimitFloat64)
+
+	} else {
+		config.QPS = 25
+	}
+	// QPS Burst
+	qpsBurstEnvVal, ok := os.LookupEnv("KUBECLIENT_QPS_BURST")
+	if ok {
+		qpsBurstInt64, err := strconv.ParseInt(qpsBurstEnvVal, 10, 32)
+		if err != nil {
+			panic(fmt.Sprintf("qpsBurst parsing failed, int type is required"))
+		}
+		config.Burst = int(qpsBurstInt64)
+
+	} else {
+		config.Burst = 50
+	}
+
+}
+
 func NewKubernetesProvider() (*KubernetesProvider, error) {
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, err
 	}
-	//TODO: Kubeclient QPS Limit
-    config.QPS := os.Getenv(KUBECLIENT_QPS_LIMIT)
-    if len(value) == 0 {
-        return 50
-    }
+
+	setAPIserverThrottlingCfg(config)
 
 	client, err := kubernetes.NewForConfig(config)
 	if err != nil {
