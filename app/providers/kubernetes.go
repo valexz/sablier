@@ -65,6 +65,12 @@ func NewKubernetesProvider() (*KubernetesProvider, error) {
 	if err != nil {
 		return nil, err
 	}
+	//TODO: Kubeclient QPS Limit
+    config.QPS := os.Getenv(KUBECLIENT_QPS_LIMIT)
+    if len(value) == 0 {
+        return 50
+    }
+
 	client, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, err
